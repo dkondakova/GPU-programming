@@ -1,4 +1,4 @@
-# NSU CUDA course
+# NSU GPU programming course
 
 ### Задачи
 
