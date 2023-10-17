@@ -4,8 +4,8 @@ Allocate GPU array arr of 10^8 float elements and initialize it with the kernel 
 
 ### Результаты
 
-|                  | Error         | Time, microseconds |
-|------------------|---------------|:----------:|
+|                  | Error         | Time, ms |
+|------------------|---------------|----------:|
 | (float, sin)     | 1.14873e-08   | 44088  |
 | (float, sinf)    | 4.61235e-08   | 2304   |
 | (float, __sinf)  | 1.27782e-07   | 2024   |
