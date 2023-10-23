@@ -4,7 +4,7 @@ Allocate GPU array arr of $10^8$ float elements and initialize it with the kerne
 
 ### Результаты
 
-|                  | Error         | Time, ms |
+|                  | Error         | Time, &mu;s |
 |------------------|---------------|----------:|
 | (float, sin)     | 1.14873e-08   | 44088  |
 | (float, sinf)    | 4.61235e-08   | 2304   |
