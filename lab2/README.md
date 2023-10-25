@@ -5,6 +5,9 @@ To work with image files, it is recommended to use libpng (man libpng).
 
 ### Результаты
 
+<img src="https://github.com/dkondakova/GPU-programming/assets/44597105/1c9ff763-e8d2-485c-9076-ab1ae19fdfa5" width="300"> 
+<img src="https://github.com/dkondakova/GPU-programming/assets/44597105/75a35051-3edd-4faa-9950-aa7f2bd66722" width="300">
+
 Time (global): 3355&mu;s.  
 Time (shared): 3392&mu;s.  
 Time (texture): 6374&mu;s.  
