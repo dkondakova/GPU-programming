@@ -3,10 +3,12 @@
 #include <chrono>
 #include <png.h>
 
-#define BLOCK_SIZE 16
 #define CHANNELS 3
-#define BLUR_RADIUS 8
+#define BLUR_RADIUS 6
+#define KERNEL_SIZE (2 * BLUR_RADIUS + 1)
 #define BLUR_FACTOR (1.0f / ((2 * BLUR_RADIUS + 1) * (2 * BLUR_RADIUS + 1)))
+#define BLOCK_SIZE 32
+#define SHARED_BLOCK_SIZE (BLOCK_SIZE + 2 * BLUR_RADIUS)
 
 bool loadImage(const char *filename, png_bytep **row_pointers, int &width, int &height) {
     FILE *file = nullptr;
@@ -162,6 +164,111 @@ __global__ void applyBlurShared(unsigned char *inputImage, unsigned char *output
     }
 }
 
+__global__ void applyBlurShared_fast_v1(unsigned char *inputImage, unsigned char *outputImage, int width, int height) {
+    __shared__ float3 sharedData[BLOCK_SIZE + 2 * BLUR_RADIUS][BLOCK_SIZE + 2 * BLUR_RADIUS];
+
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+
+    int col_to_copy = col + threadIdx.x - BLUR_RADIUS;
+    int row_to_copy = row + threadIdx.y - BLUR_RADIUS;
+
+    int idx = (row * width + col) * CHANNELS;
+
+    for (int dc = 0; dc < 2; ++dc) {
+        for (int dr = 0; dr < 2; ++dr) {
+	    if ((col + dc) >= 0 && (col + dc) < width && (row + dr) >= 0 && (row + dr) < height) {
+                int idx_to_copy = ((row_to_copy + dr) * width + (col_to_copy + dc)) * CHANNELS;
+                /*sharedData[threadIdx.y * 2 + dc][threadIdx.x * 2 + dr] = ((col + dc) >= 0 && (col + dc) < width && (row + dr) >= 0 && (row + dr) < height) ?
+                                                   make_float3(inputImage[idx_to_copy], inputImage[idx_to_copy + 1], inputImage[idx_to_copy + 2]) :
+                                                   make_float3(255.0f, 255.0f, 255.0f);
+		*/
+		sharedData[threadIdx.y * 2 + dc][threadIdx.x * 2 + dr] = make_float3(inputImage[idx_to_copy], inputImage[idx_to_copy + 1], inputImage[idx_to_copy + 2]);
+	    } else {
+		sharedData[threadIdx.y * 2 + dc][threadIdx.x * 2 + dr] = make_float3(255.0f, 255.0f, 255.0f);
+	    }
+        }
+    }
+
+    __syncthreads();
+
+    if (col >= 0 && col < width && row >= 0 && row < height) {
+        float3 pixelValue = make_float3(0.0f, 0.0f, 0.0f);
+        for (int dy = -BLUR_RADIUS; dy <= BLUR_RADIUS; ++dy) {
+            for (int dx = -BLUR_RADIUS; dx <= BLUR_RADIUS; ++dx) {
+                int sharedRow = threadIdx.y + BLUR_RADIUS + dy;
+                int sharedCol = threadIdx.x + BLUR_RADIUS + dx;
+
+                if (sharedRow >= 0 && sharedRow < BLOCK_SIZE + 2 * BLUR_RADIUS &&
+                    sharedCol >= 0 && sharedCol < BLOCK_SIZE + 2 * BLUR_RADIUS) {
+                    pixelValue.x += sharedData[sharedRow][sharedCol].x;
+                    pixelValue.y += sharedData[sharedRow][sharedCol].y;
+                    pixelValue.z += sharedData[sharedRow][sharedCol].z;
+                }
+            }
+        }
+
+        outputImage[idx] = static_cast<unsigned char>(pixelValue.x * BLUR_FACTOR);
+        outputImage[idx + 1] = static_cast<unsigned char>(pixelValue.y * BLUR_FACTOR);
+        outputImage[idx + 2] = static_cast<unsigned char>(pixelValue.z * BLUR_FACTOR);
+    }
+}
+
+__global__ static void applyBlurShared_fast_v2(unsigned char *inputImage, unsigned char *outputImage, int width, int height) {
+    __shared__ float3 sharedData[SHARED_BLOCK_SIZE][SHARED_BLOCK_SIZE];
+
+    int destCol = (threadIdx.y * BLOCK_SIZE + threadIdx.x) / SHARED_BLOCK_SIZE;
+    int destRow = (threadIdx.y * BLOCK_SIZE + threadIdx.x) % SHARED_BLOCK_SIZE;
+    int srcCol = blockIdx.y * BLOCK_SIZE + destCol - KERNEL_SIZE / 2;
+    int srcRow = blockIdx.x * BLOCK_SIZE + destRow - KERNEL_SIZE / 2;
+
+    if (srcCol >= 0 && srcCol < height && srcRow >= 0 && srcRow < width) {
+        int srcIdx = (srcCol * width + srcRow) * CHANNELS;
+        sharedData[destCol][destRow] = make_float3(inputImage[srcIdx], inputImage[srcIdx + 1], inputImage[srcIdx + 2]);
+    } else {
+        sharedData[destCol][destRow] = make_float3(255, 255, 255);
+    }
+
+    destCol = (threadIdx.y * BLOCK_SIZE + threadIdx.x + BLOCK_SIZE * BLOCK_SIZE) / SHARED_BLOCK_SIZE;
+    destRow = (threadIdx.y * BLOCK_SIZE + threadIdx.x + BLOCK_SIZE * BLOCK_SIZE) % SHARED_BLOCK_SIZE;
+    srcCol = blockIdx.y * BLOCK_SIZE + destCol - KERNEL_SIZE / 2;
+    srcRow = blockIdx.x * BLOCK_SIZE + destRow - KERNEL_SIZE / 2;
+
+    if (destCol < SHARED_BLOCK_SIZE) {
+        if (srcCol >= 0 && srcCol < height && srcRow >= 0 && srcRow < width) {
+            int srcIdx = (srcCol * width + srcRow) * CHANNELS;
+            sharedData[destCol][destRow] = make_float3(inputImage[srcIdx], inputImage[srcIdx + 1], inputImage[srcIdx + 2]);
+        } else {
+            sharedData[destCol][destRow] = make_float3(255, 255, 255);
+        }
+    }
+
+    __syncthreads();
+
+    int row = blockIdx.y * BLOCK_SIZE + threadIdx.y;
+    int col = blockIdx.x * BLOCK_SIZE + threadIdx.x;
+
+    if (row < height && col < width) {
+        float3 pixelValue = make_float3(0.0f, 0.0f, 0.0f);
+        for (int dy = -BLUR_RADIUS; dy <= BLUR_RADIUS; ++dy) {
+            for (int dx = -BLUR_RADIUS; dx <= BLUR_RADIUS; ++dx) {
+                int sharedRow = threadIdx.y + dy + BLUR_RADIUS;
+                int sharedCol = threadIdx.x + dx + BLUR_RADIUS;
+
+                pixelValue.x += sharedData[sharedRow][sharedCol].x;
+                pixelValue.y += sharedData[sharedRow][sharedCol].y;
+                pixelValue.z += sharedData[sharedRow][sharedCol].z;
+            }
+        }
+
+        int idx = (row * width + col) * CHANNELS;
+
+        outputImage[idx] = static_cast<unsigned char>(pixelValue.x * BLUR_FACTOR);
+        outputImage[idx + 1] = static_cast<unsigned char>(pixelValue.y * BLUR_FACTOR);
+        outputImage[idx + 2] = static_cast<unsigned char>(pixelValue.z * BLUR_FACTOR);
+    }
+}
+
 texture<unsigned char, 1, cudaReadModeElementType> texRef;
 
 __global__ void applyBlurTexture(unsigned char *outputImage, int width, int height) {
@@ -236,7 +343,8 @@ void applyBlur(const unsigned char *inputImage, unsigned char *outputImage, size
     if (type == "global") {
         applyBlurGlobal<<<GS,BS>>>(d_inputImage, d_outputImage, width, height);
     } else if (type == "shared") {
-        applyBlurShared<<<GS,BS_s>>>(d_inputImage, d_outputImage, width, height);
+        //applyBlurShared<<<GS,BS_s>>>(d_inputImage, d_outputImage, width, height);
+        applyBlurShared_fast_v2<<<GS,BS>>>(d_inputImage, d_outputImage, width, height);
     } else if (type == "texture") {
         applyBlurTexture<<<GS, BS>>>(d_outputImage, width, height);
     }
