@@ -8,9 +8,27 @@ To work with image files, it is recommended to use libpng (man libpng).
 <img src="https://github.com/dkondakova/GPU-programming/assets/44597105/1c9ff763-e8d2-485c-9076-ab1ae19fdfa5" width="300"> 
 <img src="https://github.com/dkondakova/GPU-programming/assets/44597105/75a35051-3edd-4faa-9950-aa7f2bd66722" width="300">
 
-Time (global): 3355&mu;s.  
-Time (shared): 3392&mu;s.  
-Time (texture): 6374&mu;s.  
+BLOCK_SIZE = 32  
+BLUR_RADIUS = 6  
+| Mem type | Time, &mu;s |
+|:--------:|------:|
+|  global  | 1216  |
+|  shared  | 1021  |
+|  texture | 3802  |
+
+Разделяемая память работает быстрее остальных, потому что минимизирует обращение к глобальной памяти. Также при использовании разделяемой памяти тратится время на перенос данных из глобальной памяти в разделяемую, поэтому использовать её следует при частом обращении к одним и тем же данным в глобальной памяти.  
+Текстурная память оказалась самой долгой, хотя в теории должна быть быстрее глобальной, потому что кэширует данные глобальной памяти после первого обращения.
+
+### Архив
+
+Результаты для shared памяти выше были получены с помощью функции [applyBlurShared_fast_v2](https://github.com/dkondakova/GPU-programming/blob/4827d765db0952cb338e2b068120a00297b6f569/lab2/main.cu#L217C24-L217C47) для следующих параметров:  
+BLOCK_SIZE = 16  
+BLUR_RADIUS = 8  
+| Mem type | Time, &mu;s |
+|:--------:|------:|
+|  global  | 3355  |
+|  shared  | 3392  |
+|  texture | 6374  | 
 
 ##### Возможое объяснение результатов:
 + **Почему нет разнинцы между `global` и `shared`?**  
