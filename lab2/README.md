@@ -24,7 +24,7 @@ BLUR_RADIUS = 6
 ### Архив
 
 Результаты для shared памяти выше были получены с помощью функции [applyBlurShared_fast_v2](https://github.com/dkondakova/GPU-programming/blob/4827d765db0952cb338e2b068120a00297b6f569/lab2/main.cu#L217).  
-Результаты ниже, были получены с помощью функции [applyBlurShared](https://github.com/dkondakova/GPU-programming/blob/3fe355ab4786beeb90f60aefda66480accdf6e48/lab2/main.cu#L129) для следующих параметров:  
+Результаты для shared памяти ниже, были получены с помощью функции [applyBlurShared](https://github.com/dkondakova/GPU-programming/blob/3fe355ab4786beeb90f60aefda66480accdf6e48/lab2/main.cu#L129) для следующих параметров:  
 BLOCK_SIZE = 16  
 BLUR_RADIUS = 8  
 | Mem type | Time, &mu;s |
