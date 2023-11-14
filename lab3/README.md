@@ -24,22 +24,22 @@ Modify the [previous program](https://github.com/dkondakova/GPU-programming/tree
     <tbody align="center">
         <tr>
             <td>global</td>
-            <td>1 216</td>
-            <td>75 224</td>
+            <td>451</td>
+            <td>3 372</td>
             <td>290</td>
             <td>2 991</td>
         </tr>
         <tr>
             <td>shared</td>
-            <td>1 021</td>
-            <td>74 890</td>
+            <td>289</td>
+            <td>2 913</td>
             <td>200</td>
             <td>2 632</td>
         </tr>
         <tr>
             <td>texture</td>
-            <td>3 802</td>
-            <td>78 505</td>
+            <td>1 455</td>
+            <td>3 974</td>
             <td>811</td>
             <td>3 244</td>
         </tr>
