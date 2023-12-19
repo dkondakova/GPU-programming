@@ -9,17 +9,21 @@ Use the method of least squares to find a circle in the image. For each random s
 
 ### Результаты
 
-Входное изображение:
+#### Входное изображение:
 
 <img src="https://github.com/dkondakova/GPU-programming/assets/44597105/b7305b28-0f90-4cad-96e0-fdd27c92c9dd" width="300"> 
 
 
-Обработанное фильтром Собеля (с выделенными пикселями, у `которых normalized color value>0.9`):
+#### Обработанное фильтром Собеля (с выделенными пикселями, у `которых normalized color value>0.9`):
 
 <img src="https://github.com/dkondakova/GPU-programming/assets/44597105/6de530ec-fddc-4659-b22e-248130259d27" width="300"> 
 
 
-Итоговые изображения:
+#### Итоговое изображение:
+
+Может быть такое, что ни в одном из $N$ наборов из $K$ случайнных точек не будет всех $K$, лежащих на одной реальной окружности. Тогда будет выбираться набор точек, наиболее подходящих для окружности.
+
+Поэтому могут получаться вот такие результаты:
 
 <table>
   <tr>
@@ -33,3 +37,5 @@ Use the method of least squares to find a circle in the image. For each random s
     <td><img src="https://github.com/dkondakova/GPU-programming/assets/44597105/1976ebf8-796c-4299-97fc-11fe1bcb27ca" alt="Image 6" width="300"/></td>
   </tr>
 </table>
+
+На каждом изображении показаны: найденная окужность и набор из $K$ точек, покоторым была найдена эта окружность.
